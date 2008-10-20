@@ -1,11 +1,79 @@
 package Gitosis::Config;
-our $VERSION = '0.0.3';
+our $VERSION = '0.0.4';
 use Moose;
 use Gitosis::Config::Reader;
 use Gitosis::Config::Writer;
 use Gitosis::Config::Group;
 use MooseX::Types::Path::Class qw(File);
 use MooseX::AttributeHelpers;
+
+has file => (
+    isa    => File,
+    coerce => 1,
+    is     => 'rw',
+);
+
+has [qw(gitweb daemon loglevel repositories)] => (
+    isa => 'Maybe[Str]',
+    is  => 'rw',
+);
+
+has groups => (
+    metaclass  => 'Collection::Array',
+    isa        => 'ArrayRef[Gitosis::Config::Group]',
+    is         => 'ro',
+    auto_deref => 1,
+    lazy_build => 1,
+    provides   => {
+        push => 'add_group',
+    },
+    curries => {
+        find => {
+            find_group_by_name => sub {
+                my ( $self, $body, $arg ) = @_;
+                $body->( $self, sub { $_[0]->name eq $arg } );
+            },
+        }
+    }
+);
+
+sub _build_groups { [] }
+
+around 'add_group' => sub {
+    my ( $next, $self, $group ) = @_;
+    $group = Gitosis::Config::Group->new($group) unless ( blessed $group);
+    $self->$next($group);
+};
+
+has repos => (
+    metaclass  => 'Collection::Array',
+    isa        => 'ArrayRef[HashRef]',
+    is         => 'ro',
+    auto_deref => 1,
+    lazy_build => 1,
+    provides   => { push => 'add_repo', }
+);
+
+sub _build_repos { [] }
+
+#
+# METHODS
+#
+
+sub to_string {
+    Gitosis::Config::Writer->write_string( $_[0] );
+}
+
+sub save {
+    my ($self) = @_;
+    die 'Must have a filename, please set file()' unless $self->file;
+    $self->file->openw->print( $self->to_string ) or die "$!";
+
+}
+
+#
+# Constructor Hack 
+#
 
 sub BUILD {
     my ( $self, $args ) = @_;
@@ -37,60 +105,6 @@ sub _build_from_config {
         ( $repo->{name} = $name ) =~ s/^repo\s+//;
         $self->add_repo($repo);
     }
-}
-
-has file => (
-    isa    => File,
-    coerce => 1,
-    is     => 'rw',
-);
-
-has [qw(gitweb daemon loglevel repositories)] => (
-    isa => 'Maybe[Str]',
-    is  => 'rw',
-);
-
-has groups => (
-    metaclass  => 'Collection::Array',
-    isa        => 'ArrayRef[Gitosis::Config::Group]',
-    is         => 'ro',
-    auto_deref => 1,
-    lazy_build => 1,
-    provides   => { push => 'add_group', }
-);
-
-sub _build_groups { [] }
-
-around 'add_group' => sub {
-    my ( $next, $self, $group ) = @_;
-    $group = Gitosis::Config::Group->new(%$group) unless ( blessed $group);
-    $self->$next($group);
-};
-
-has repos => (
-    metaclass  => 'Collection::Array',
-    isa        => 'ArrayRef[HashRef]',
-    is         => 'ro',
-    auto_deref => 1,
-    lazy_build => 1,
-    provides   => { push => 'add_repo', }
-);
-
-sub _build_repos { [] }
-
-#
-# METHODS
-#
-
-sub to_string {
-    Gitosis::Config::Writer->write_string( $_[0] );
-}
-
-sub save {
-    my ($self) = @_;
-    die 'Must have a filename, please set file()' unless $self->file;
-    $self->file->openw->print( $self->to_string );
-
 }
 
 no Moose;
