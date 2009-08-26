@@ -1,7 +1,7 @@
 ---
 abstract: 'Parse and Write gitosis config files'
 author:
-  - 'Chris Prather  C<< <perigrin@cpan.org> >>'
+  - 'Chris Prather  C<< <chris@prather.org> >>'
 build_requires:
   ExtUtils::MakeMaker: 6.42
   Test::Exception: 0.27
@@ -28,4 +28,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/perigrin/gitosis-config.git
-version: 0.05
+version: 0.06
